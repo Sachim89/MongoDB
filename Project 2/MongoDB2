@@ -1,0 +1,159 @@
+QUESTION 1.1:
+
+CREATE THE TREE:
+db.categories.insert({_id: "MongoDB", parent:"Databases"})
+db.categories.insert({_id: "dbm", parent:"Databases"})
+db.categories.insert({_id: "Languages", parent:"Programming"})
+db.categories.insert({_id: "Databases", parent:"Programming"})
+db.categories.insert({_id: "Programming", parent:"Books"})
+db.categories.insert({_id: "Books", parent:null})
+
+QUERY:
+	var ancestors = [];
+var stack = [];
+var level = 1;
+var item = db.categories.findOne({_id: "MongoDB"});
+stack.push(item);
+while (stack.length > 0) {
+	var current = stack.pop();
+	var parent =  db.categories.find({_id:current.parent});
+		while(parent.hasNext())
+		{
+			var parent_new = parent.next();
+			var result = {Name: parent_new._id, Level: level};
+			ancestors.push(result);
+			stack.push(parent_new);
+		}
+		level++;
+}
+ancestors;
+
+QUESTION 1.2:
+var stack = [];
+var item = db.categories.findOne({_id: "Books"});
+stack.push(item);
+var height = 0;
+while (stack.length > 0){
+	height++;
+	var len = stack.length;
+	for(var i = 0 ; i < len ; i++)
+	{
+		var current = stack.pop();
+		var children =  db.categories.find( {parent: current._id});
+		while (children.hasNext()) 
+		{
+			var child = children.next();
+			stack.push(child);
+		}
+	}
+}
+height;
+
+QUESTION 1.3:
+
+db.categories.remove({});
+
+CREATE THE TREE:
+db.categories.insert({_id: "MongoDB", children: []})
+db.categories.insert({_id: "dbm", children: []})
+db.categories.insert({_id: "Languages", children: []})
+db.categories.insert({_id: "Databases", children: ["MongoDB", "dbm"]})
+db.categories.insert({_id: "Programming", children: ["Databases", "Languages"]})
+db.categories.insert({_id: "Books",children: ["Programming"]})
+
+QUERY:
+var parents = db.categories.find({"children" : "dbm"},{"children":0});
+var parent_new = parents.next()._id;
+parent_new;
+
+
+QUESTION 1.4:
+var stack = [];
+var item = db.categories.findOne({_id : "Books"});
+stack.push(item);
+var descendants = [];
+
+while (stack.length > 0) {
+	var length = stack.length;
+	for (var i = 0; i < length; i++) {
+		var current = stack.pop();
+		var children = current.children;
+		children.forEach(function(child){
+			db.categories.find({_id : child}).forEach(function(item) {
+				stack.push(item);
+				descendants.push(item._id);
+			});
+		})
+	}
+}
+descendants;
+
+QUESTION 1.5:
+QUERY TYPE1:
+var siblings = db.categories.findOne({"children" : "Databases"}).children;
+for (var i = 0; i < siblings.length; i++) {
+	if (siblings[i] != "Databases") {
+		db.categories.findOne({_id : siblings[i]});
+	}
+}
+
+QUERY TYPE2:
+var parent = db.categories.findOne({"children" : "Databases"});
+var siblings= parent.children;
+for (var i = 0; i < siblings.length; i++) {
+	if (siblings[i] != "Databases") {
+		db.categories.find({_id : siblings[i]},{ children :0});
+	}
+}
+
+QUESTION 2.1:
+db.test.mapReduce(
+	function() {
+		for (var i = 0; i < this.awards.length; i++) {
+			var key = this.awards[i].award;
+			var value = 1;
+			emit(key, value);
+		}
+	},
+	function(key, values) { 
+		return Array.sum(values) 
+	},
+	{
+		query : { awards : {$exists : true} },
+		out : "award_count",
+	} 
+).find()
+
+QUESTION 2.2:
+var result = db.test.find();
+while(result.hasNext())
+{
+	var record = result.next();
+	if (record.birth)
+	{
+		if(record.birth !=  null)
+		{
+			record.year = record.birth.getFullYear();
+			db.temp2.insert(record);
+		}
+	}
+}
+	db.temp2.aggregate ([
+	{
+		$group: { _id: "$year", arrayIDs : { $push : "$_id" } }
+	}]
+	);
+
+QUESTION 2.3:
+var large = db.test.find({}).sort({_id:-1}).limit(1);
+var largestId = large.next()._id;
+var small = db.test.find({}).sort({_id:1}).limit(1);
+var smallestId = small.next()._id;
+db.test.find({_id: {$in: [largestId, smallestId]}});
+
+QUESTION 2.4:
+db.test.createIndex({ "awards.award": "text" })
+db.test.find( { $text: { $search: "\"Turing Award\"" } } ).pretty();
+
+QUESTION 2.5:
+db.test.find({$text: { $search: "Turing National Medal"}});
